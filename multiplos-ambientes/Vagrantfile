@@ -1,0 +1,27 @@
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "ubuntu/trusty64"
+
+  config.vm.define "db" do |db|
+    db.vm.network "private_network", ip: "192.168.99.3"
+    db.vm.network "forwarded_port", guest: 3306, host: 3306, guest_ip: "192.168.99.3"
+    db.vm.provision "file", source: "source/script", destination: "/home/vagrant"
+    db.vm.provision "shell", path: "provision/db-provision.sh"
+    
+  end
+
+  config.vm.define "web" do |web|
+    web.vm.network "private_network", ip: "192.168.99.2"
+    web.vm.network "forwarded_port", guest: 8081, host: 1234, guest_ip: "192.168.99.2"
+    web.vm.provision "file", source: "source/app-node", destination: "/home/vagrant/app-node"
+    web.vm.provision "shell", path: "provision/web-provision.sh"
+  end
+
+  config.trigger.before :destroy, :halt, :package do |trigger|
+    trigger.run_remote = {inline: "sudo netstat -lpn | grep :'8081'"}
+    trigger.run_remote = {inline: "sudo pkill -f node"}
+    trigger.run_remote = {inline: "sudo pkill -f mysql"}
+  end
+
+end
